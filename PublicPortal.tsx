@@ -1,9 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Newspaper, ArrowUpRight, Lock, Globe, Zap, Activity, ChevronLeft, Share2, Mail, X, Shield } from 'lucide-react';
 
 const PublicPortal: React.FC = () => {
   const [selectedArticle, setSelectedArticle] = useState<null | number>(null);
   const [showModal, setShowModal] = useState(false);
+  const [nextCycle, setNextCycle] = useState("");
+
+  // Logic to calculate the next even 2-hour window (Automation sync)
+  useEffect(() => {
+    const calculateNextCycle = () => {
+      const now = new Date();
+      const currentHour = now.getHours();
+      // Finds the next even hour (e.g., if 10:00, next is 12:00. If 11:00, next is 12:00)
+      const nextHour = currentHour % 2 === 0 ? currentHour + 2 : currentHour + 1;
+      
+      const nextDate = new Date();
+      nextDate.setHours(nextHour, 0, 0, 0);
+      
+      setNextCycle(nextDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    };
+
+    calculateNextCycle();
+    const timer = setInterval(calculateNextCycle, 60000); // Refresh every minute
+    return () => clearInterval(timer);
+  }, []);
 
   const articles = [
     { 
@@ -29,7 +49,7 @@ const PublicPortal: React.FC = () => {
   // 1. MODAL COMPONENT (FOR CAPTURING LEADS)
   const TerminalModal = () => (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-white w-full max-w-md p-8 rounded-sm border-t-4 border-[#ccff00] relative">
+      <div className="bg-white w-full max-w-md p-8 rounded-sm border-t-4 border-[#ccff00] relative text-black">
         <button onClick={() => setShowModal(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-black">
           <X className="w-5 h-5" />
         </button>
@@ -84,21 +104,22 @@ const PublicPortal: React.FC = () => {
     );
   }
 
-  // 3. MAIN FEED
   return (
     <div className="min-h-screen bg-[#fcfcfc] text-black font-sans selection:bg-[#ccff00] selection:text-black">
       {showModal && <TerminalModal />}
       
-      {/* Utility Bar */}
+      {/* 🟢 DYNAMIC UTILITY BAR */}
       <div className="bg-black text-[9px] text-zinc-500 py-2 px-4 md:px-12 flex justify-between items-center uppercase tracking-[0.3em] border-b border-zinc-900">
-        <div className="flex gap-6 animate-pulse">
-          <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 bg-[#ccff00] rounded-full" /> NODE_KL_ACTIVE</span>
+        <div className="flex gap-6 items-center">
+          <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 bg-[#ccff00] rounded-full animate-pulse" /> NODE_KL_ACTIVE</span>
+          <span className="text-zinc-700 hidden md:inline">|</span>
+          <span className="hidden md:inline">NEXT_CYCLE: {nextCycle}</span>
+          <span className="text-zinc-700 hidden md:inline">|</span>
           <span className="hidden md:inline">INDEX_SEA: +14.22</span>
         </div>
         <div className="text-[#ccff00]">SGT {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
       </div>
 
-      {/* Navigation */}
       <nav className="border-b border-black/5 py-5 px-4 md:px-12 flex justify-between items-center sticky top-0 bg-white/80 backdrop-blur-xl z-50">
         <div className="flex items-center gap-3">
           <div className="bg-black p-1.5 rounded-sm"><Newspaper className="w-5 h-5 text-[#ccff00]" /></div>
@@ -109,7 +130,6 @@ const PublicPortal: React.FC = () => {
         </button>
       </nav>
 
-      {/* Content */}
       <main className="max-w-7xl mx-auto px-4 md:px-12 py-10 md:py-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-20">
           <div className="lg:col-span-8 space-y-16">
@@ -123,7 +143,7 @@ const PublicPortal: React.FC = () => {
                   <span className="text-[#00c073]">{post.tag}</span>
                   <span className="text-zinc-400">• {post.date}</span>
                 </div>
-                <h3 className="text-3xl md:text-5xl font-bold tracking-tight mb-6 leading-tight group-hover:text-zinc-600 transition-colors">
+                <h3 className="text-3xl md:text-5xl font-bold tracking-tight mb-6 leading-tight group-hover:text-zinc-600 transition-colors italic">
                   {post.title}
                 </h3>
                 <p className="text-zinc-500 text-sm md:text-base font-light leading-relaxed mb-8 max-w-2xl">{post.summary}</p>
