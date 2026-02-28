@@ -2,9 +2,8 @@ name: Equitee Autonomous Cycle
 
 on:
   schedule:
-    # This runs every 2 hours. Note the single quotes below!
     - cron: '0 */2 * * *'
-  workflow_dispatch: # Allows you to run it manually for testing
+  workflow_dispatch:
 
 jobs:
   run-cycle:
