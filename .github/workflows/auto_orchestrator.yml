@@ -1,15 +1,32 @@
-name: Equitee 2-Hour Autonomous Cycle
+// services/autonomousOrchestrator.ts
 
-on:
-  schedule:
-    # This 'cron' tells GitHub to run every 2 hours
-    - cron: '0 */2 * * *'
-  workflow_dispatch: # This allows you to also run it manually from GitHub
+export async function runAutonomousCycle() {
+  // 1. DISCOVERY & TRIAGE (Existing Logic)
+  const triageNote = await sentinel.getTriage();
+  if (triageNote.status === "no_signal_detected") return triageNote;
 
-jobs:
-  trigger-orchestrator:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Ping Autonomous Service
-        run: |
-          curl -X POST "${{ secrets.VERCEL_DEPLOY_HOOK_URL }}"
+  // 2. EDITORIAL SYNTHESIS (Existing Logic)
+  const articleDraft = await editorialChief.synthesize(triageNote);
+
+  // 3. NEW: THE CREATIVE DIRECTOR STEP 
+  // The AI now "reads" the article and generates a bespoke image prompt
+  const imagePrompt = await creativeDirector.generatePrompt(articleDraft.content);
+
+  // 4. CALL IMAGE GENERATOR (Nano Banana 2 / Gemini 3 Flash Image)
+  // This step creates the 8k architectural asset
+  const generatedImgUrl = await imageGenerator.create({
+    prompt: imagePrompt,
+    aspect_ratio: "21:9", // Matches your PublicPortal layout
+    style: "Architectural, Minimalist, High-Contrast"
+  });
+
+  // 5. FINAL JSON ASSEMBLY
+  // We replace the placeholder Unsplash URL with your unique AI asset
+  const finalArticle = {
+    ...articleDraft,
+    img: generatedImgUrl, // Now a unique, agency-grade asset
+    last_cycle_status: "COMPLETE_WITH_VISUAL"
+  };
+
+  return finalArticle;
+}
