@@ -1,32 +1,67 @@
 // services/autonomousOrchestrator.ts
+import { sentinel, editorialChief, creativeDirector, ceoBot, imageGenerator } from './aiAgents';
+import { supabase } from './database';
 
+/**
+ * EQUITEE AUTONOMOUS CYCLE v2.0
+ * Focus: Institutional Reputation & Visual Excellence
+ */
 export async function runAutonomousCycle() {
-  // 1. DISCOVERY & TRIAGE (Existing Logic)
-  const triageNote = await sentinel.getTriage();
-  if (triageNote.status === "no_signal_detected") return triageNote;
+  console.log("INITIALIZING_OPERATIONAL_CYCLE: NODE_KL_ACTIVE");
 
-  // 2. EDITORIAL SYNTHESIS (Existing Logic)
+  // 1. DISCOVERY & TRIAGE (The Sentinel)
+  // Scans for Sovereign/Tech deltas in the KL/SG/JKT corridor.
+  const triageNote = await sentinel.getTriage();
+  
+  if (triageNote.status === "no_signal_detected") {
+    console.log("CYCLE_TERMINATED: NO_HIGH_VALUE_SIGNAL");
+    return { status: "no_signal_detected" };
+  }
+
+  // 2. REPUTATION GATEKEEPER (The CEO Bot)
+  // Evaluates if the signal is "World-Class" or just "Legacy News."
+  const reputationScore = await ceoBot.evaluate(triageNote);
+  
+  if (reputationScore < 0.85) {
+    console.log("SIGNAL_REJECTED: BELOW_ELITE_THRESHOLD");
+    return { status: "signal_discarded_low_reputation_value" };
+  }
+
+  // 3. EDITORIAL SYNTHESIS (Voice: Bront Palarae)
+  // Converts raw triage into a minimalist, institutional-grade thesis.
   const articleDraft = await editorialChief.synthesize(triageNote);
 
-  // 3. NEW: THE CREATIVE DIRECTOR STEP 
-  // The AI now "reads" the article and generates a bespoke image prompt
+  // 4. VISUAL IDENTITY (The Creative Director)
+  // Generates a bespoke prompt for Nano Banana 2 based on the thesis theme.
   const imagePrompt = await creativeDirector.generatePrompt(articleDraft.content);
 
-  // 4. CALL IMAGE GENERATOR (Nano Banana 2 / Gemini 3 Flash Image)
-  // This step creates the 8k architectural asset
+  // 5. ASSET GENERATION (Image Tool)
+  // Creates the unique 8k architectural/brutalist cover art.
   const generatedImgUrl = await imageGenerator.create({
     prompt: imagePrompt,
-    aspect_ratio: "21:9", // Matches your PublicPortal layout
-    style: "Architectural, Minimalist, High-Contrast"
+    aspect_ratio: "21:9", 
+    style: "Architectural, Minimalist, High-Contrast, Brand_Color_#ccff00"
   });
 
-  // 5. FINAL JSON ASSEMBLY
-  // We replace the placeholder Unsplash URL with your unique AI asset
+  // 6. FINAL INTEL ASSEMBLY
   const finalArticle = {
     ...articleDraft,
-    img: generatedImgUrl, // Now a unique, agency-grade asset
-    last_cycle_status: "COMPLETE_WITH_VISUAL"
+    id: Date.now(), // Unique ID generation
+    img: generatedImgUrl,
+    status: "PUBLISHED_AUTONOMOUS",
+    last_cycle_status: "COMPLETE_WITH_VISUAL_IDENTITY"
   };
 
+  // 7. PUSH TO VAULT (Supabase)
+  const { data, error } = await supabase
+    .from('articles')
+    .insert([finalArticle]);
+
+  if (error) {
+    console.error("VAULT_INSERT_FAILED:", error);
+    throw new Error("DATA_PERSISTENCE_FAILURE");
+  }
+
+  console.log("CYCLE_COMPLETE: ARTICLE_DEPLOYED_TO_PORTAL");
   return finalArticle;
 }
