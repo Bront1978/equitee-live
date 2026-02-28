@@ -1,67 +1,29 @@
-// services/autonomousOrchestrator.ts
-import { sentinel, editorialChief, creativeDirector, ceoBot, imageGenerator } from './aiAgents';
-import { supabase } from './database';
+name: Equitee Autonomous Cycle
 
-/**
- * EQUITEE AUTONOMOUS CYCLE v2.0
- * Focus: Institutional Reputation & Visual Excellence
- */
-export async function runAutonomousCycle() {
-  console.log("INITIALIZING_OPERATIONAL_CYCLE: NODE_KL_ACTIVE");
+on:
+  schedule:
+    # This runs every 2 hours. Note the single quotes below!
+    - cron: '0 */2 * * *'
+  workflow_dispatch: # Allows you to run it manually for testing
 
-  // 1. DISCOVERY & TRIAGE (The Sentinel)
-  // Scans for Sovereign/Tech deltas in the KL/SG/JKT corridor.
-  const triageNote = await sentinel.getTriage();
-  
-  if (triageNote.status === "no_signal_detected") {
-    console.log("CYCLE_TERMINATED: NO_HIGH_VALUE_SIGNAL");
-    return { status: "no_signal_detected" };
-  }
+jobs:
+  run-cycle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-  // 2. REPUTATION GATEKEEPER (The CEO Bot)
-  // Evaluates if the signal is "World-Class" or just "Legacy News."
-  const reputationScore = await ceoBot.evaluate(triageNote);
-  
-  if (reputationScore < 0.85) {
-    console.log("SIGNAL_REJECTED: BELOW_ELITE_THRESHOLD");
-    return { status: "signal_discarded_low_reputation_value" };
-  }
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-  // 3. EDITORIAL SYNTHESIS (Voice: Bront Palarae)
-  // Converts raw triage into a minimalist, institutional-grade thesis.
-  const articleDraft = await editorialChief.synthesize(triageNote);
+      - name: Install Dependencies
+        run: npm install
 
-  // 4. VISUAL IDENTITY (The Creative Director)
-  // Generates a bespoke prompt for Nano Banana 2 based on the thesis theme.
-  const imagePrompt = await creativeDirector.generatePrompt(articleDraft.content);
-
-  // 5. ASSET GENERATION (Image Tool)
-  // Creates the unique 8k architectural/brutalist cover art.
-  const generatedImgUrl = await imageGenerator.create({
-    prompt: imagePrompt,
-    aspect_ratio: "21:9", 
-    style: "Architectural, Minimalist, High-Contrast, Brand_Color_#ccff00"
-  });
-
-  // 6. FINAL INTEL ASSEMBLY
-  const finalArticle = {
-    ...articleDraft,
-    id: Date.now(), // Unique ID generation
-    img: generatedImgUrl,
-    status: "PUBLISHED_AUTONOMOUS",
-    last_cycle_status: "COMPLETE_WITH_VISUAL_IDENTITY"
-  };
-
-  // 7. PUSH TO VAULT (Supabase)
-  const { data, error } = await supabase
-    .from('articles')
-    .insert([finalArticle]);
-
-  if (error) {
-    console.error("VAULT_INSERT_FAILED:", error);
-    throw new Error("DATA_PERSISTENCE_FAILURE");
-  }
-
-  console.log("CYCLE_COMPLETE: ARTICLE_DEPLOYED_TO_PORTAL");
-  return finalArticle;
-}
+      - name: Execute Autonomous Cycle
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node services/autonomousOrchestrator.js
