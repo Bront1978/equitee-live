@@ -1,12 +1,10 @@
-// services/autonomousOrchestrator.ts
-
 import { sentinel, editorialChief, creativeDirector, ceoBot, imageGenerator } from './aiAgents';
 import { supabase } from './database';
 import { getLatestAlpha } from './rssIngest';
 
 /**
  * EQUITEE AUTONOMOUS CYCLE v3.1
- * The Strategic Intelligence Engine
+ * Institutional Intelligence & Visual Identity Engine
  */
 export async function runAutonomousCycle() {
   console.log("--- STARTING_AUTONOMOUS_CYCLE: NODE_KL ---");
@@ -69,9 +67,9 @@ export async function runAutonomousCycle() {
 
   } catch (error) {
     console.error("CRITICAL_CYCLE_FAILURE:", error);
-    process.exit(1); // Force GitHub Actions to show a red "X" if it fails
+    process.exit(1); 
   }
 }
 
-// CRITICAL: This line triggers the automation when GitHub Actions runs the file
+// THE IGNITION SWITCH:
 runAutonomousCycle();
