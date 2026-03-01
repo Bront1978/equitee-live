@@ -25,4 +25,8 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+<<<<<<< HEAD
         run: npx tsx services/autonomousOrchestrator.ts
+=======
+        run: node services/autonomousOrchestrator.js
+>>>>>>> c306f4e4e5d95bf620d23ea13bccb98a285ce1e2
