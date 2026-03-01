@@ -4,7 +4,7 @@ import Parser from 'rss-parser';
 
 const parser = new Parser();
 
-// STEP 1: EXPANDED ELITE SOURCE LIST
+// STEP 1: THE COMPILATION SOURCE LIST
 const ELITE_NODES = [
   { name: 'The Information', url: 'https://www.theinformation.com/feed' },
   { name: 'TechCrunch', url: 'https://techcrunch.com/feed' },
@@ -16,18 +16,22 @@ const ELITE_NODES = [
 ];
 
 export async function runAutonomousCycle() {
-  console.log("--- INITIALIZING_V6_COMPILATION_SESSION ---");
+  console.log("--- INITIALIZING_V6_COMPILATION_SESSION: KL ---");
 
   try {
+    // 1. INGESTION: Gathering data from across the ecosystem
     let allNews: any[] = [];
     for (const node of ELITE_NODES) {
       try {
         const feed = await parser.parseURL(node.url);
         allNews = [...allNews, ...feed.items.map(i => ({ ...i, source_name: node.name }))];
-      } catch (e) { console.error(`OFFLINE: ${node.name}`); }
+      } catch (e) {
+        console.error(`OFFLINE: ${node.name}`);
+      }
     }
 
-    // STEP 3: DEDUPLICATION (First 5 Words)
+    // 2. STEP 3: DEDUPLICATION LOGIC (The 5-Word Shingle)
+    // This prevents the same story from appearing twice if reported by multiple sites.
     const uniqueAlpha = allNews.filter((item, index, self) =>
       index === self.findIndex((t) => (
         t.title?.toLowerCase().split(' ').slice(0, 5).join(' ') === 
@@ -36,12 +40,12 @@ export async function runAutonomousCycle() {
     );
 
     for (const signal of uniqueAlpha) {
-      // CEO BOT EVALUATES QUALITY AND SENTIMENT (THE HOT SWITCH)
+      // 3. THE HOT SWITCH: CEO Bot analyzes quality and market sentiment
       const triage = await ceoBot.evaluate(signal);
       const sentiment = triage.sentiment || 'NEUTRAL'; 
 
       if (triage.reputationScore >= 0.92) {
-        // BESPOKE: Deep Dive Analysis
+        // ROUTE A: BESPOKE DEEP DIVE (Priority Analysis)
         const [articleDraft, imagePrompt] = await Promise.all([
           editorialChief.synthesize(triage),
           creativeDirector.generatePrompt(triage.content)
@@ -55,10 +59,11 @@ export async function runAutonomousCycle() {
           tag: 'PRIORITY_ANALYSIS',
           img: imgUrl,
           author: "Equitee Editorial Desk",
-          date: new Date().toISOString()
+          date: new Date().toISOString(),
+          reading_time: "5 MIN READ"
         }]);
       } else if (triage.reputationScore >= 0.75) {
-        // WIRE: Market Aggregation
+        // ROUTE B: MARKET WIRE (Compilation)
         await supabase.from('articles').insert([{
           title: triage.title,
           summary: triage.summary,
@@ -67,10 +72,13 @@ export async function runAutonomousCycle() {
           sentiment: sentiment,
           tag: 'MARKET_WIRE',
           author: signal.source_name,
-          date: new Date().toISOString()
+          date: new Date().toISOString(),
+          reading_time: "1 MIN READ"
         }]);
       }
     }
-    console.log("--- SESSION_SUCCESS ---");
-  } catch (error) { console.error("SESSION_CRITICAL_FAILURE", error); }
+    console.log("--- SESSION_SUCCESS: PORTAL_POPULATED ---");
+  } catch (error) {
+    console.error("SESSION_CRITICAL_FAILURE", error);
+  }
 }
