@@ -1,75 +1,75 @@
-import { sentinel, editorialChief, creativeDirector, ceoBot, imageGenerator } from './aiAgents';
+import { editorialChief, creativeDirector, ceoBot, imageGenerator } from './aiAgents';
 import { supabase } from './database';
-import { getLatestAlpha } from './rssIngest';
+import Parser from 'rss-parser';
 
-/**
- * EQUITEE AUTONOMOUS CYCLE v3.1
- * Institutional Intelligence & Visual Identity Engine
- */
+const parser = new Parser();
+
+// STEP 1: EXPANDED SENTINEL SOURCE LIST
+const ELITE_NODES = [
+  { name: 'The Information', url: 'https://www.theinformation.com/feed' },
+  { name: 'TechCrunch', url: 'https://techcrunch.com/feed' },
+  { name: 'StrictlyVC', url: 'https://www.strictlyvc.com/feed' },
+  { name: 'DealStreetAsia', url: 'https://www.dealstreetasia.com/feed' },
+  { name: 'e27', url: 'https://e27.co/feed' },
+  { name: 'Tech In Asia', url: 'https://www.techinasia.com/feed' }
+];
+
 export async function runAutonomousCycle() {
-  console.log("--- STARTING_AUTONOMOUS_CYCLE: NODE_KL ---");
+  console.log("--- INITIALIZING_COMPILATION_SESSION: KL ---");
 
   try {
-    // 1. INGEST: Fetch raw data from elite nodes
-    const rawAlpha = await getLatestAlpha();
-    
-    if (!rawAlpha || rawAlpha.length === 0) {
-      console.log("TERMINATE: NO_NEW_ALPHA_FOUND_IN_WINDOW");
-      return { status: "idle", reason: "no_new_data" };
+    // INGESTION: Fetch from all nodes
+    let allNews: any[] = [];
+    for (const node of ELITE_NODES) {
+      try {
+        const feed = await parser.parseURL(node.url);
+        const items = feed.items.map(item => ({ ...item, source_name: node.name }));
+        allNews = [...allNews, ...items];
+      } catch (e) { console.error(`Failed node: ${node.name}`); }
     }
 
-    // 2. REPUTATION FILTER: CEO Bot evaluates for "Institutional Grade"
-    const triageNote = await ceoBot.evaluate(rawAlpha);
+    // STEP 3: DEDUPLICATION LOGIC
+    // Clusters similar stories by comparing the first 5 words of the title
+    const uniqueAlpha = allNews.filter((item, index, self) =>
+      index === self.findIndex((t) => (
+        t.title?.toLowerCase().split(' ').slice(0, 5).join(' ') === 
+        item.title?.toLowerCase().split(' ').slice(0, 5).join(' ')
+      ))
+    );
 
-    if (!triageNote || triageNote.reputationScore < 0.85) {
-      console.log(`REJECTED: SIGNAL_STRENGTH_TOO_LOW (${triageNote?.reputationScore || 0})`);
-      return { status: "rejected", reason: "low_reputation_score" };
+    for (const signal of uniqueAlpha) {
+      const triage = await ceoBot.evaluate(signal);
+
+      // ROUTING LOGIC
+      if (triage.reputationScore >= 0.92) {
+        // BESPOKE: Full Editorial Deep Dive
+        const [articleDraft, imagePrompt] = await Promise.all([
+          editorialChief.synthesize(triage),
+          creativeDirector.generatePrompt(triage.content)
+        ]);
+        const imgUrl = await imageGenerator.create({ prompt: imagePrompt });
+
+        await supabase.from('articles').insert([{
+          ...articleDraft,
+          type: 'BESPOKE',
+          tag: 'PRIORITY_ANALYSIS',
+          img: imgUrl,
+          author: "Equitee Editorial Desk",
+          date: new Date().toISOString()
+        }]);
+      } else if (triage.reputationScore >= 0.75) {
+        // WIRE: Aggregated Compilation (No Image/Full Text)
+        await supabase.from('articles').insert([{
+          title: triage.title,
+          summary: triage.summary,
+          source_link: signal.link,
+          type: 'WIRE',
+          tag: 'MARKET_WIRE',
+          author: signal.source_name,
+          date: new Date().toISOString()
+        }]);
+      }
     }
-
-    console.log(`SIGNAL_APPROVED: ${triageNote.title}`);
-
-    // 3. SYNTHESIS: Editorial Chief (Bront Voice) & Creative Director visuals
-    const [articleDraft, imagePrompt] = await Promise.all([
-      editorialChief.synthesize(triageNote),
-      creativeDirector.generatePrompt(triageNote.content)
-    ]);
-
-    // 4. VISUAL ASSET: Generate the high-end architectural cover
-    const generatedImgUrl = await imageGenerator.create({
-      prompt: imagePrompt,
-      aspect_ratio: "21:9",
-      style: "Architectural, Minimalist, High-Contrast, Brand_Color_#ccff00"
-    });
-
-    // 5. ASSEMBLY: Final Intelligence Object
-    const finalIntel = {
-      title: articleDraft.title,
-      summary: articleDraft.summary,
-      content: articleDraft.content,
-      tag: articleDraft.tag || "SOVEREIGN_INTELLIGENCE",
-      date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(),
-      img: generatedImgUrl,
-      source_link: triageNote.link,
-      reputation_score: triageNote.reputationScore,
-      status: "PUBLISHED_AUTONOMOUS"
-    };
-
-    // 6. PERSISTENCE: Save to Supabase Vault
-    const { data, error } = await supabase
-      .from('articles')
-      .insert([finalIntel])
-      .select();
-
-    if (error) throw error;
-
-    console.log("--- CYCLE_COMPLETE: ASSET_DEPLOYED_TO_VAULT ---");
-    return { status: "success", data: data[0] };
-
-  } catch (error) {
-    console.error("CRITICAL_CYCLE_FAILURE:", error);
-    process.exit(1); 
-  }
+    console.log("--- COMPILATION_COMPLETE ---");
+  } catch (error) { console.error("SESSION_FAILURE:", error); }
 }
-
-// THE IGNITION SWITCH:
-runAutonomousCycle();
