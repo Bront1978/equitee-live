@@ -1,29 +1,77 @@
-name: Equitee Autonomous Cycle
+// services/autonomousOrchestrator.ts
 
-on:
-  schedule:
-    - cron: '0 */2 * * *'
-  workflow_dispatch:
+import { sentinel, editorialChief, creativeDirector, ceoBot, imageGenerator } from './aiAgents';
+import { supabase } from './database';
+import { getLatestAlpha } from './rssIngest';
 
-jobs:
-  run-cycle:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+/**
+ * EQUITEE AUTONOMOUS CYCLE v3.1
+ * The Strategic Intelligence Engine
+ */
+export async function runAutonomousCycle() {
+  console.log("--- STARTING_AUTONOMOUS_CYCLE: NODE_KL ---");
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+  try {
+    // 1. INGEST: Fetch raw data from elite nodes
+    const rawAlpha = await getLatestAlpha();
+    
+    if (!rawAlpha || rawAlpha.length === 0) {
+      console.log("TERMINATE: NO_NEW_ALPHA_FOUND_IN_WINDOW");
+      return { status: "idle", reason: "no_new_data" };
+    }
 
-      - name: Install Dependencies
-        run: npm install
+    // 2. REPUTATION FILTER: CEO Bot evaluates for "Institutional Grade"
+    const triageNote = await ceoBot.evaluate(rawAlpha);
 
-      - name: Execute Autonomous Cycle
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-        # Pointing to the .ts file using npx tsx
-        run: npx tsx services/autonomousOrchestrator.ts
+    if (!triageNote || triageNote.reputationScore < 0.85) {
+      console.log(`REJECTED: SIGNAL_STRENGTH_TOO_LOW (${triageNote?.reputationScore || 0})`);
+      return { status: "rejected", reason: "low_reputation_score" };
+    }
+
+    console.log(`SIGNAL_APPROVED: ${triageNote.title}`);
+
+    // 3. SYNTHESIS: Editorial Chief (Bront Voice) & Creative Director visuals
+    const [articleDraft, imagePrompt] = await Promise.all([
+      editorialChief.synthesize(triageNote),
+      creativeDirector.generatePrompt(triageNote.content)
+    ]);
+
+    // 4. VISUAL ASSET: Generate the high-end architectural cover
+    const generatedImgUrl = await imageGenerator.create({
+      prompt: imagePrompt,
+      aspect_ratio: "21:9",
+      style: "Architectural, Minimalist, High-Contrast, Brand_Color_#ccff00"
+    });
+
+    // 5. ASSEMBLY: Final Intelligence Object
+    const finalIntel = {
+      title: articleDraft.title,
+      summary: articleDraft.summary,
+      content: articleDraft.content,
+      tag: articleDraft.tag || "SOVEREIGN_INTELLIGENCE",
+      date: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase(),
+      img: generatedImgUrl,
+      source_link: triageNote.link,
+      reputation_score: triageNote.reputationScore,
+      status: "PUBLISHED_AUTONOMOUS"
+    };
+
+    // 6. PERSISTENCE: Save to Supabase Vault
+    const { data, error } = await supabase
+      .from('articles')
+      .insert([finalIntel])
+      .select();
+
+    if (error) throw error;
+
+    console.log("--- CYCLE_COMPLETE: ASSET_DEPLOYED_TO_VAULT ---");
+    return { status: "success", data: data[0] };
+
+  } catch (error) {
+    console.error("CRITICAL_CYCLE_FAILURE:", error);
+    process.exit(1); // Force GitHub Actions to show a red "X" if it fails
+  }
+}
+
+// CRITICAL: This line triggers the automation when GitHub Actions runs the file
+runAutonomousCycle();
