@@ -1,4 +1,4 @@
-import { editorialChief, creativeDirector, ceoBot, imageGenerator } from './aiAgents';
+import { ceoBot, editorialChief, creativeDirector, imageGenerator } from './aiAgents';
 import { supabase } from './database';
 import Parser from 'rss-parser';
 
@@ -21,7 +21,6 @@ export async function runAutonomousCycle() {
     for (const node of ELITE_NODES) {
       try {
         const feed = await parser.parseURL(node.url);
-        // Mapping ensures we don't lose the source link or name
         allNews = [...allNews, ...feed.items.map(i => ({ 
           title: i.title,
           link: i.link,
@@ -29,10 +28,12 @@ export async function runAutonomousCycle() {
           source_name: node.name,
           isoDate: i.isoDate
         }))];
-      } catch (e) { console.error(`Failed to reach ${node.name}`); }
+      } catch (e) { 
+        console.error(`Failed to reach ${node.name}`); 
+      }
     }
 
-    // DEDUPLICATION: Ensures "Grab IPO" only appears once even if 5 sites report it
+    // DEDUPLICATION
     const uniqueAlpha = allNews.filter((item, index, self) =>
       index === self.findIndex((t) => (
         t.title?.toLowerCase().split(' ').slice(0, 5).join(' ') === 
@@ -41,40 +42,46 @@ export async function runAutonomousCycle() {
     );
 
     for (const signal of uniqueAlpha) {
-      const triage = await ceoBot.evaluate(signal);
-      const sentiment = triage.sentiment || 'NEUTRAL'; 
+      try {
+        const triage = await ceoBot.evaluate(signal);
+        const sentiment = triage.sentiment || 'NEUTRAL'; 
 
-      if (triage.reputationScore >= 0.92) {
-        // PRIORITY ANALYSIS: The high-end "Bront Voice" articles
-        const [articleDraft, imagePrompt] = await Promise.all([
-          editorialChief.synthesize(triage),
-          creativeDirector.generatePrompt(triage.content)
-        ]);
-        const imgUrl = await imageGenerator.create({ prompt: imagePrompt });
+        if (triage.reputationScore >= 0.92) {
+          const [articleDraft, imagePrompt] = await Promise.all([
+            editorialChief.synthesize(triage),
+            creativeDirector.generatePrompt(triage.content || triage.summary)
+          ]);
+          const imgUrl = await imageGenerator.create({ prompt: imagePrompt });
 
-        await supabase.from('articles').insert([{
-          ...articleDraft,
-          type: 'BESPOKE',
-          sentiment: sentiment,
-          tag: 'PRIORITY_ANALYSIS',
-          img: imgUrl,
-          author: "Equitee Editorial Desk",
-          date: new Date().toISOString()
-        }]);
-      } else if (triage.reputationScore >= 0.75) {
-        // THE WIRE: The high-frequency aggregation
-        await supabase.from('articles').insert([{
-          title: triage.title,
-          summary: triage.summary,
-          source_link: signal.link, // THIS MAKES THE SIDEBAR BUTTONS WORK
-          type: 'WIRE',
-          sentiment: sentiment,
-          tag: 'MARKET_WIRE',
-          author: signal.source_name,
-          date: new Date().toISOString()
-        }]);
+          await supabase.from('articles').insert([{
+            title: articleDraft.title,
+            content: articleDraft.content,
+            summary: triage.summary,
+            type: 'BESPOKE',
+            sentiment: sentiment,
+            tag: 'PRIORITY_ANALYSIS',
+            img: imgUrl,
+            author: "Equitee Editorial Desk",
+            date: new Date().toISOString()
+          }]);
+        } else if (triage.reputationScore >= 0.75) {
+          await supabase.from('articles').insert([{
+            title: triage.title,
+            summary: triage.summary,
+            source_link: signal.link,
+            type: 'WIRE',
+            sentiment: sentiment,
+            tag: 'MARKET_WIRE',
+            author: signal.source_name,
+            date: new Date().toISOString()
+          }]);
+        }
+      } catch (innerError) {
+        console.error("Error processing specific signal:", innerError);
       }
     }
     console.log("--- COMPILATION COMPLETE: VAULT UPDATED ---");
-  } catch (error) { console.error("CRITICAL ORCHESTRATOR ERROR:", error); }
+  } catch (error) { 
+    console.error("CRITICAL ORCHESTRATOR ERROR:", error); 
+  }
 }
