@@ -1,5 +1,5 @@
-import { ceoBot, editorialChief, creativeDirector, imageGenerator } from './aiAgents';
-import { supabase } from './database';
+import { ceoBot, editorialChief, creativeDirector, imageGenerator } from './aiAgents.ts';
+import { supabase } from './database.ts';
 import Parser from 'rss-parser';
 
 const parser = new Parser();
