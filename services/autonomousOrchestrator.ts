@@ -4,7 +4,6 @@ import Parser from 'rss-parser';
 
 const parser = new Parser();
 
-// STEP 1: EXPANDED ELITE SOURCE LIST (The "Compilation")
 const ELITE_NODES = [
   { name: 'The Information', url: 'https://www.theinformation.com/feed' },
   { name: 'TechCrunch', url: 'https://techcrunch.com/feed' },
@@ -16,17 +15,24 @@ const ELITE_NODES = [
 ];
 
 export async function runAutonomousCycle() {
-  console.log("--- INITIALIZING_V6_COMPILATION ---");
+  console.log("--- STARTING FULL SCALE COMPILATION ---");
   try {
     let allNews: any[] = [];
     for (const node of ELITE_NODES) {
       try {
         const feed = await parser.parseURL(node.url);
-        allNews = [...allNews, ...feed.items.map(i => ({ ...i, source_name: node.name }))];
-      } catch (e) { console.error(`OFFLINE: ${node.name}`); }
+        // Mapping ensures we don't lose the source link or name
+        allNews = [...allNews, ...feed.items.map(i => ({ 
+          title: i.title,
+          link: i.link,
+          content: i.contentSnippet || i.content,
+          source_name: node.name,
+          isoDate: i.isoDate
+        }))];
+      } catch (e) { console.error(`Failed to reach ${node.name}`); }
     }
 
-    // STEP 3: DEDUPLICATION LOGIC
+    // DEDUPLICATION: Ensures "Grab IPO" only appears once even if 5 sites report it
     const uniqueAlpha = allNews.filter((item, index, self) =>
       index === self.findIndex((t) => (
         t.title?.toLowerCase().split(' ').slice(0, 5).join(' ') === 
@@ -39,22 +45,36 @@ export async function runAutonomousCycle() {
       const sentiment = triage.sentiment || 'NEUTRAL'; 
 
       if (triage.reputationScore >= 0.92) {
+        // PRIORITY ANALYSIS: The high-end "Bront Voice" articles
         const [articleDraft, imagePrompt] = await Promise.all([
           editorialChief.synthesize(triage),
           creativeDirector.generatePrompt(triage.content)
         ]);
         const imgUrl = await imageGenerator.create({ prompt: imagePrompt });
+
         await supabase.from('articles').insert([{
-          ...articleDraft, type: 'BESPOKE', sentiment, tag: 'PRIORITY_ANALYSIS',
-          img: imgUrl, author: "Equitee Editorial Desk", date: new Date().toISOString()
+          ...articleDraft,
+          type: 'BESPOKE',
+          sentiment: sentiment,
+          tag: 'PRIORITY_ANALYSIS',
+          img: imgUrl,
+          author: "Equitee Editorial Desk",
+          date: new Date().toISOString()
         }]);
       } else if (triage.reputationScore >= 0.75) {
+        // THE WIRE: The high-frequency aggregation
         await supabase.from('articles').insert([{
-          title: triage.title, summary: triage.summary, source_link: signal.link,
-          type: 'WIRE', sentiment, tag: 'MARKET_WIRE', author: signal.source_name,
+          title: triage.title,
+          summary: triage.summary,
+          source_link: signal.link, // THIS MAKES THE SIDEBAR BUTTONS WORK
+          type: 'WIRE',
+          sentiment: sentiment,
+          tag: 'MARKET_WIRE',
+          author: signal.source_name,
           date: new Date().toISOString()
         }]);
       }
     }
-  } catch (error) { console.error(error); }
+    console.log("--- COMPILATION COMPLETE: VAULT UPDATED ---");
+  } catch (error) { console.error("CRITICAL ORCHESTRATOR ERROR:", error); }
 }
