@@ -1,7 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+// We use process.env to grab the secrets you just updated in GitHub
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-// This is the main connection your bot uses to talk to your database
+if (!supabaseUrl || !supabaseServiceKey) {
+  throw new Error("Missing Supabase Environment Variables in GitHub Secrets");
+}
+
 export const supabase = createClient(supabaseUrl, supabaseServiceKey);
