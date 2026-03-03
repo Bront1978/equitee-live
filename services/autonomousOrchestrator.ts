@@ -1,87 +1,71 @@
-import { ceoBot, editorialChief, creativeDirector, imageGenerator } from './aiAgents.ts';
-import { supabase } from './database.ts';
+import { ceoBot, governanceAuditor, editorialChief } from './aiAgents';
+import { supabase } from './database';
 import Parser from 'rss-parser';
 
 const parser = new Parser();
 
 const ELITE_NODES = [
-  { name: 'The Information', url: 'https://www.theinformation.com/feed' },
-  { name: 'TechCrunch', url: 'https://techcrunch.com/feed' },
-  { name: 'StrictlyVC', url: 'https://www.strictlyvc.com/feed' },
+  // SOUTH EAST ASIA
   { name: 'DealStreetAsia', url: 'https://www.dealstreetasia.com/feed' },
-  { name: 'e27', url: 'https://e27.co/feed' },
   { name: 'Tech In Asia', url: 'https://www.techinasia.com/feed' },
-  { name: 'VentureBeat', url: 'https://venturebeat.com/feed' }
+  { name: 'e27', url: 'https://e27.co/feed' },
+  // CHINA & HONG KONG
+  { name: 'SCMP Tech', url: 'https://www.scmp.com/rss/91/feed' },
+  { name: 'Caixin Global', url: 'https://www.caixinglobal.com/rss/all.xml' },
+  // INDIA
+  { name: 'YourStory', url: 'https://yourstory.com/feed' },
+  { name: 'Inc42', url: 'https://inc42.com/feed' },
+  // JAPAN & KOREA
+  { name: 'Nikkei Asia', url: 'https://asia.nikkei.com/rss/feed/nar' },
+  { name: 'Korea Herald Tech', url: 'https://www.koreaherald.com/common/rss_xml.php?ct=103' }
 ];
 
 export async function runAutonomousCycle() {
-  console.log("--- STARTING FULL SCALE COMPILATION ---");
+  console.log("--- INITIATING PAN-ASIAN INTELLIGENCE SWEEP ---");
   try {
     let allNews: any[] = [];
     for (const node of ELITE_NODES) {
       try {
         const feed = await parser.parseURL(node.url);
         allNews = [...allNews, ...feed.items.map(i => ({ 
-          title: i.title,
-          link: i.link,
-          content: i.contentSnippet || i.content,
-          source_name: node.name,
-          isoDate: i.isoDate
+          title: i.title, link: i.link, content: i.contentSnippet || i.content, source_name: node.name 
         }))];
-      } catch (e) { 
-        console.error(`Failed to reach ${node.name}`); 
-      }
+      } catch (e) { console.error(`Offline: ${node.name}`); }
     }
 
-    // DEDUPLICATION
-    const uniqueAlpha = allNews.filter((item, index, self) =>
-      index === self.findIndex((t) => (
-        t.title?.toLowerCase().split(' ').slice(0, 5).join(' ') === 
-        item.title?.toLowerCase().split(' ').slice(0, 5).join(' ')
-      ))
+    const uniqueSignals = allNews.filter((item, index, self) =>
+      index === self.findIndex((t) => (t.title?.slice(0, 30) === item.title?.slice(0, 30)))
     );
 
-    for (const signal of uniqueAlpha) {
-      try {
-        const triage = await ceoBot.evaluate(signal);
-        const sentiment = triage.sentiment || 'NEUTRAL'; 
+    for (const signal of uniqueSignals) {
+      const triage = await ceoBot.evaluate(signal);
+      
+      // QUALITY GATES: 0.70 for Deep Dives, 0.40 for The Wire
+      if (triage.reputationScore >= 0.70) {
+        const audit = await governanceAuditor.audit(triage);
+        const briefing = await editorialChief.synthesize(triage, audit);
 
-        if (triage.reputationScore >= 0.92) {
-          const [articleDraft, imagePrompt] = await Promise.all([
-            editorialChief.synthesize(triage),
-            creativeDirector.generatePrompt(triage.content || triage.summary)
-          ]);
-          const imgUrl = await imageGenerator.create({ prompt: imagePrompt });
-
-          await supabase.from('articles').insert([{
-            title: articleDraft.title,
-            content: articleDraft.content,
-            summary: triage.summary,
-            type: 'BESPOKE',
-            sentiment: sentiment,
-            tag: 'PRIORITY_ANALYSIS',
-            img: imgUrl,
-            author: "Equitee Editorial Desk",
-            date: new Date().toISOString()
-          }]);
-        } else if (triage.reputationScore >= 0.75) {
-          await supabase.from('articles').insert([{
-            title: triage.title,
-            summary: triage.summary,
-            source_link: signal.link,
-            type: 'WIRE',
-            sentiment: sentiment,
-            tag: 'MARKET_WIRE',
-            author: signal.source_name,
-            date: new Date().toISOString()
-          }]);
-        }
-      } catch (innerError) {
-        console.error("Error processing specific signal:", innerError);
+        await supabase.from('articles').insert([{
+          ...briefing,
+          type: 'BESPOKE',
+          sentiment: triage.sentiment,
+          tag: triage.tag,
+          author: "Equitee Editorial Desk",
+          date: new Date().toISOString()
+        }]);
+      } else if (triage.reputationScore >= 0.40) {
+        await supabase.from('articles').insert([{
+          title: signal.title,
+          summary: triage.summary,
+          source_link: signal.link,
+          type: 'WIRE',
+          sentiment: triage.sentiment,
+          tag: triage.tag,
+          author: signal.source_name,
+          date: new Date().toISOString()
+        }]);
       }
     }
-    console.log("--- COMPILATION COMPLETE: VAULT UPDATED ---");
-  } catch (error) { 
-    console.error("CRITICAL ORCHESTRATOR ERROR:", error); 
-  }
+    console.log("--- SWEEP COMPLETE ---");
+  } catch (error) { console.error("ORCHESTRATOR CRASH:", error); }
 }
